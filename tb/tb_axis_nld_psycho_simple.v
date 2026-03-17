@@ -27,9 +27,9 @@ module tb_axis_nld_psycho_simple;
     // ========================================================================
     // 1. CLOCK, RESET, AND BASIC SIGNALS
     // ========================================================================
-    parameter CLK_PERIOD = 10; // 100 MHz
+    parameter integer CLK_PERIOD = 10; // 100 MHz
 
-    reg aclk = 0;
+    reg aclk;
     reg aresetn;
 
     // =========================================================================
@@ -61,7 +61,7 @@ module tb_axis_nld_psycho_simple;
     // File Logging & Audio Generation
     // =========================================================================
     integer file_csv;
-    integer i, k;
+    integer i, k, j;
 
     real phase = 0.0;
     real freq  = 440.0;   // A4 tone
@@ -112,6 +112,7 @@ module tb_axis_nld_psycho_simple;
     // =========================================================================
     // Clock Generator
     // =========================================================================
+    initial aclk = 1'b0;
     always #(CLK_PERIOD/2) aclk = ~aclk;
 
     // =========================================================================
@@ -119,9 +120,7 @@ module tb_axis_nld_psycho_simple;
     // -------------------------------------------------------------------------
     // Simplified single-register write transaction
     // =========================================================================
-    task axi_write;
-        input [3:0]  addr;
-        input [31:0] data;
+    task axi_write(input [3:0] addr, input [31:0] data);
         begin
             @(posedge aclk);
             s_axi_awaddr  <= addr;
@@ -143,6 +142,20 @@ module tb_axis_nld_psycho_simple;
     endtask
 
     // =========================================================================
+    // Audio Sample Generator
+    // =========================================================================
+    task send_audio_sample;
+        begin
+            @(posedge aclk);
+            if (s_axis_tready) begin
+                phase = phase + (2.0 * 3.14159265 * freq / fs);
+                s_axis_tdata  <= $rtoi($sin(phase) * 32000.0);
+                s_axis_tvalid <= 1'b1;
+            end
+        end
+    endtask
+
+    // =========================================================================
     // 3. MAIN TEST SEQUENCE
     // =========================================================================
     initial begin
@@ -150,13 +163,20 @@ module tb_axis_nld_psycho_simple;
         file_csv = $fopen("tb_data_nld_axis.csv", "w");
         $fdisplay(file_csv, "sample,x_in,y_out,mode");
 
-        // Reset and init
-        aresetn        = 1'b0;
-        s_axis_tvalid  = 1'b0;
-        m_axis_tready  = 1'b1;
+        // Reset and explicit initial conditions
+        aresetn       = 1'b0;
+        s_axis_tdata  = 16'd0;
+        s_axis_tvalid = 1'b0;
+        m_axis_tready = 1'b1;
+
+        s_axi_awaddr  = 4'd0;
+        s_axi_awvalid = 1'b0;
+        s_axi_wdata   = 32'd0;
+        s_axi_wvalid  = 1'b0;
+        s_axi_bready  = 1'b0;
 
         for (k = 0; k < TOTAL_LAT; k = k + 1)
-            x_history[k] = 16'd0;
+            x_history[k] = 16'sd0;
 
         #100;
         aresetn = 1'b1;
@@ -168,6 +188,11 @@ module tb_axis_nld_psycho_simple;
         for (i = 0; i < 1000; i = i + 1) begin
             send_audio_sample();
         end
+
+        // Ensure stream is de-asserted between tests
+        @(posedge aclk);
+        s_axis_tvalid <= 1'b0;
+        #100;
 
         // ------------------------------------------------------------
         // Configure NLD via AXI-Lite
@@ -184,6 +209,9 @@ module tb_axis_nld_psycho_simple;
             send_audio_sample();
         end
 
+        @(posedge aclk);
+        s_axis_tvalid <= 1'b0;
+
         #200;
         $fclose(file_csv);
         $display("Simulation complete. Output written to tb_data_nld_axis.csv");
@@ -191,32 +219,18 @@ module tb_axis_nld_psycho_simple;
     end
 
     // =========================================================================
-    // Audio Sample Generator
-    // =========================================================================
-    task send_audio_sample;
-        begin
-            @(posedge aclk);
-            if (s_axis_tready) begin
-                phase = phase + (2.0 * 3.14159265 * freq / fs);
-                s_axis_tdata  = $rtoi($sin(phase) * 32000.0);
-                s_axis_tvalid = 1'b1;
-            end
-        end
-    endtask
-
-    // =========================================================================
     // 4. DATA LOGGING WITH LATENCY ALIGNMENT
     // =========================================================================
     always @(posedge aclk) begin
         if (aresetn) begin
-            // Shift input history for alignment
+            // Shift input history for alignment using separate loop variable 'j'
             x_history[0] <= $signed(s_axis_tdata);
-            for (k = 1; k < TOTAL_LAT; k = k + 1)
-                x_history[k] <= x_history[k-1];
+            for (j = 1; j < TOTAL_LAT; j = j + 1)
+                x_history[j] <= x_history[j-1];
 
             // Log aligned samples when output is valid
             if (m_axis_tvalid && m_axis_tready) begin
-                $fdisplay(file_csv, "%0d,%d,%d,%d",
+                $fdisplay(file_csv, "%0d,%0d,%0d,%0d",
                           i,
                           $signed(x_history[TOTAL_LAT-1]),
                           $signed(m_axis_tdata),
