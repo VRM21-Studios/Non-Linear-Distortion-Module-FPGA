@@ -25,7 +25,8 @@ module tb_nld_tanh_core_16;
     // -------------------------------------------------------------------------
     // 100 MHz simulation clock
     // =========================================================================
-    reg clk = 0;
+    reg clk;
+    initial clk = 1'b0;
     always #5 clk = ~clk;
 
     // =========================================================================
@@ -75,7 +76,7 @@ module tb_nld_tanh_core_16;
     real fs    = 48000.0;   // Sample rate
     real amp   = 0.0;
 
-    integer i, k;
+    integer i, k, j;
 
     // =========================================================================
     // Helper Function: Float to Q1.15 Conversion
@@ -99,11 +100,11 @@ module tb_nld_tanh_core_16;
         // Initial conditions
         rst   = 1'b1;
         en    = 1'b0;
-        x     = 16'd0;
+        x     = 16'sd0;
         drive = 16'h4000;   // Drive = 1.0 (Q2.14)
 
         for (k = 0; k < LAT; k = k + 1)
-            x_delayed[k] = 16'd0;
+            x_delayed[k] = 16'sd0;
 
         // Release reset
         #100;
@@ -125,8 +126,8 @@ module tb_nld_tanh_core_16;
 
             // Log aligned input/output samples
             if (i > LAT) begin
-                $fdisplay(file_out, "%d,%d,%d",
-                          i, x_delayed[LAT-1], y);
+                $fdisplay(file_out, "%0d,%0d,%0d",
+                          i, $signed(x_delayed[LAT-1]), $signed(y));
             end
         end
 
@@ -142,8 +143,8 @@ module tb_nld_tanh_core_16;
     always @(posedge clk) begin
         if (en) begin
             x_delayed[0] <= x;
-            for (k = 1; k < LAT; k = k + 1)
-                x_delayed[k] <= x_delayed[k-1];
+            for (j = 1; j < LAT; j = j + 1)
+                x_delayed[j] <= x_delayed[j-1];
         end
     end
 
