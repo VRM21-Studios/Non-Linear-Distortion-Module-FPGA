@@ -196,6 +196,14 @@ Provided as-is, without warranty.
 
 ---
 
+Special Thanks
+
+
+Special thanks to @imhaealf for the technical collaboration and for contributing algorithmic and architectural ideas that influenced the design and development of this project.
+q
+
+---
+
 ## Notes
 
 > **This repository demonstrates design decisions, not design possibilities.**
