@@ -196,11 +196,10 @@ Provided as-is, without warranty.
 
 ---
 
-Special Thanks
+## Special Thanks
 
 
 Special thanks to @imhaealf for the technical collaboration and for contributing algorithmic and architectural ideas that influenced the design and development of this project.
-q
 
 ---
 
