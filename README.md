@@ -199,7 +199,7 @@ Provided as-is, without warranty.
 ## Special Thanks
 
 
-Special thanks to @imhaealf for the technical collaboration and for contributing algorithmic and architectural ideas that influenced the design and development of this project.
+Special thanks to @imhaealf (https://github.com/imhaealf) for the technical collaboration and for contributing algorithmic and architectural ideas that influenced the design and development of this project.
 
 ---
 
